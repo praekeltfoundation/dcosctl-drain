@@ -44,8 +44,15 @@ def cordon(mesos_url, machine_id, duration):
     # Get the existing maintenance schedule...
     schedule = _request("GET", mesos_url, "maintenance/schedule").json()
 
+    windows = schedule.setdefault("windows", [])
+    for window in windows:
+        if machine_id in window["machine_ids"]:
+            _log("ERROR: Machine already scheduled in a maintenance window, "
+                 "cannot schedule again")
+            return
+
     # Modify the windows in-place, appending the new node
-    schedule.setdefault("windows", []).append({
+    windows.append({
         "machine_ids": [machine_id],
         "unavailability": {
             "duration": _ns_time(duration),
