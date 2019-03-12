@@ -4,6 +4,9 @@ Python script for easier interaction with Mesos maintenance primitives
 Provides `kubectl`-like (but definitely not equivalent) commands for taking
 nodes out of a cluster.
 
+**Note** that this script was designed for a very specific purpose, has no
+tests, and is kept here purely for posterity.
+
 Specifically designed for use with DC/OS 1.10. Some of this functionality is
 present in recent versions of the `dcos` CLI, and more advanced functionality is
 also available in recent versions of Mesos.
