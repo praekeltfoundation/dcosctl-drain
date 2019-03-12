@@ -17,12 +17,16 @@ def _ns_time(seconds):
     return {"nanoseconds": int(seconds * 10**9)}
 
 
+def _log(msg):
+    print(msg)
+
+
 def cordon(args):
     # Get the existing maintenance schedule...
     schedule = _request("GET", args.mesos_url, "maintenance/schedule").json()
 
     # Modify the windows in-place, appending the new node
-    schedule["windows"].append({
+    schedule.setdefault("windows", []).append({
         "machine_ids": [
             {
                 "hostname": args.hostname,
@@ -43,9 +47,14 @@ def uncordon(args):
     # Get the existing maintenance schedule...
     schedule = _request("GET", args.mesos_url, "maintenance/schedule").json()
 
+    windows = schedule.get("windows")
+    if not windows:
+        _log("WARN: No scheduled maintenance windows, nothing to 'uncordon'")
+        return
+
     # Remove all references to the host, cleaning up as we go
     new_windows = []
-    for window in schedule["windows"]:
+    for window in windows:
         machine_ids = [mid for mid in window["machine_ids"]
                        if mid["hostname"] != args.hostname]
 
