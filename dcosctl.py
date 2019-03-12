@@ -44,7 +44,7 @@ def cordon(args):
 
 
 def uncordon(args):
-    machine_id = {"hostname": args.hostname, "id": args.hostname}
+    machine_id = {"hostname": args.hostname, "ip": args.hostname}
 
     # Check if the node is in draining mode. Our 'uncordon' process doesn't
     # care whether or not this is the case, but it may be useful information
