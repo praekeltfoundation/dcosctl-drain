@@ -21,18 +21,34 @@ def _log(msg):
     print(msg)
 
 
+def _is_draining(mesos_url, machine_id):
+    # http://mesos.apache.org/documentation/latest/maintenance/#draining-mode
+    status = _request("GET", mesos_url, "maintenance/status").json()
+    draining_machines = status.get("draining_machines", [])
+    for machine in draining_machines:
+        if machine.get("id") == machine_id:
+            return True
+
+    return False
+
+
 def cordon(args):
+    machine_id = {"hostname": args.hostname, "ip": args.hostname}
+
+    # Check if the node is in draining mode. If it is, it must already be
+    # scheduled, in which case Mesos won't allow us to schedule it again. Give
+    # up.
+    if _is_draining(args.mesos_url, machine_id):
+        _log("WARN: Machine is already in draining mode, cannot add to "
+             "maintenance schedule more than once")
+        return
+
     # Get the existing maintenance schedule...
     schedule = _request("GET", args.mesos_url, "maintenance/schedule").json()
 
     # Modify the windows in-place, appending the new node
     schedule.setdefault("windows", []).append({
-        "machine_ids": [
-            {
-                "hostname": args.hostname,
-                "ip": args.hostname
-            }
-        ],
+        "machine_ids": [machine_id],
         "unavailability": {
             "duration": _ns_time(args.duration),
             "start": _ns_time(time.time())
@@ -49,16 +65,7 @@ def uncordon(args):
     # Check if the node is in draining mode. Our 'uncordon' process doesn't
     # care whether or not this is the case, but it may be useful information
     # for the user.
-    # http://mesos.apache.org/documentation/latest/maintenance/#draining-mode
-    status = _request("GET", args.mesos_url, "maintenance/status").json()
-    draining_machines = status.get("draining_machines", [])
-    draining = False
-    for machine in draining_machines:
-        if machine.get("id") == machine_id:
-            draining = True
-            break
-
-    if not draining:
+    if not _is_draining(args.mesos_url, machine_id):
         _log("WARN: Machine was not in draining mode, attempting to remove "
              "from maintenance schedule anyway...")
 
