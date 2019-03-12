@@ -32,14 +32,17 @@ def _is_draining(mesos_url, machine_id):
     return False
 
 
+class ScheduleError(RuntimeError):
+    pass
+
+
 def cordon(mesos_url, machine_id, duration):
     # Check if the node is in draining mode. If it is, it must already be
     # scheduled, in which case Mesos won't allow us to schedule it again. Give
     # up.
     if _is_draining(mesos_url, machine_id):
-        _log("WARN: Machine is already in draining mode, cannot add to "
-             "maintenance schedule more than once")
-        return
+        raise ScheduleError("Machine is already in draining mode, cannot add "
+                            "to maintenance schedule more than once")
 
     # Get the existing maintenance schedule...
     schedule = _request("GET", mesos_url, "maintenance/schedule").json()
@@ -47,9 +50,9 @@ def cordon(mesos_url, machine_id, duration):
     windows = schedule.setdefault("windows", [])
     for window in windows:
         if machine_id in window["machine_ids"]:
-            _log("ERROR: Machine already scheduled in a maintenance window, "
-                 "cannot schedule again")
-            return
+            raise ScheduleError(
+                "Machine already scheduled in a maintenance window, cannot "
+                "schedule again")
 
     # Modify the windows in-place, appending the new node
     windows.append({
@@ -72,14 +75,13 @@ def uncordon(mesos_url, machine_id):
         _log("WARN: Machine was not in draining mode, attempting to remove "
              "from maintenance schedule anyway...")
 
-
     # Get the existing maintenance schedule...
     schedule = _request("GET", mesos_url, "maintenance/schedule").json()
 
     windows = schedule.get("windows")
     if not windows:
-        _log("WARN: No scheduled maintenance windows, nothing to 'uncordon'")
-        return
+        raise ScheduleError(
+            "No scheduled maintenance windows, nothing to 'uncordon'")
 
     # Remove all references to the host, cleaning up as we go
     new_windows = []
@@ -100,9 +102,8 @@ def uncordon(mesos_url, machine_id):
             new_windows.append(new_window)
 
     if not scheduled:
-        _log("WARN: Hostname not found in existing maintenance windows, "
-             "nothing to 'uncordon'")
-        return
+        raise ScheduleError("Hostname not found in existing maintenance "
+                            "windows, nothing to 'uncordon'")
 
     new_schedule = {"windows": new_windows}
     _request("POST", mesos_url, "maintenance/schedule", json=new_schedule)
@@ -159,10 +160,16 @@ def main(argv=sys.argv[1:]):
     ip = args.ip if args.ip else args.hostname
     machine_id = {"hostname": args.hostname, "ip": ip}
 
-    if args.func == cordon:
-        args.func(args.mesos_url, machine_id, args.duration)
-    else:
-        args.func(args.mesos_url, machine_id)
+    try:
+        if args.func == cordon:
+            args.func(args.mesos_url, machine_id, args.duration)
+        else:
+            args.func(args.mesos_url, machine_id)
+    except ScheduleError as e:
+        # Convert these more informational errors into messages rather than big
+        # stacktraces.
+        _log("ERROR: {}".format(str(e)))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
