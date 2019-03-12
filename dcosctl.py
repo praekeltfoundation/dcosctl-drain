@@ -32,46 +32,42 @@ def _is_draining(mesos_url, machine_id):
     return False
 
 
-def cordon(args):
-    machine_id = {"hostname": args.hostname, "ip": args.hostname}
-
+def cordon(mesos_url, machine_id, duration):
     # Check if the node is in draining mode. If it is, it must already be
     # scheduled, in which case Mesos won't allow us to schedule it again. Give
     # up.
-    if _is_draining(args.mesos_url, machine_id):
+    if _is_draining(mesos_url, machine_id):
         _log("WARN: Machine is already in draining mode, cannot add to "
              "maintenance schedule more than once")
         return
 
     # Get the existing maintenance schedule...
-    schedule = _request("GET", args.mesos_url, "maintenance/schedule").json()
+    schedule = _request("GET", mesos_url, "maintenance/schedule").json()
 
     # Modify the windows in-place, appending the new node
     schedule.setdefault("windows", []).append({
         "machine_ids": [machine_id],
         "unavailability": {
-            "duration": _ns_time(args.duration),
+            "duration": _ns_time(duration),
             "start": _ns_time(time.time())
         }
     })
 
     # ...send the updated schedule back
-    _request("POST", args.mesos_url, "maintenance/schedule", json=schedule)
+    _request("POST", mesos_url, "maintenance/schedule", json=schedule)
 
 
-def uncordon(args):
-    machine_id = {"hostname": args.hostname, "ip": args.hostname}
-
+def uncordon(mesos_url, machine_id):
     # Check if the node is in draining mode. Our 'uncordon' process doesn't
     # care whether or not this is the case, but it may be useful information
     # for the user.
-    if not _is_draining(args.mesos_url, machine_id):
+    if not _is_draining(mesos_url, machine_id):
         _log("WARN: Machine was not in draining mode, attempting to remove "
              "from maintenance schedule anyway...")
 
 
     # Get the existing maintenance schedule...
-    schedule = _request("GET", args.mesos_url, "maintenance/schedule").json()
+    schedule = _request("GET", mesos_url, "maintenance/schedule").json()
 
     windows = schedule.get("windows")
     if not windows:
@@ -102,19 +98,15 @@ def uncordon(args):
         return
 
     new_schedule = {"windows": new_windows}
-    _request("POST", args.mesos_url, "maintenance/schedule", json=new_schedule)
+    _request("POST", mesos_url, "maintenance/schedule", json=new_schedule)
 
 
-def drain(args):
-    _request("POST", args.mesos_url, "machine/down", json=[
-        {"hostname": args.hostname, "ip": args.hostname}
-    ])
+def drain(mesos_url, machine_id):
+    _request("POST", mesos_url, "machine/down", json=[machine_id])
 
 
-def up(args):
-    _request("POST", args.mesos_url, "machine/up", json=[
-        {"hostname": args.hostname, "ip": args.hostname}
-    ])
+def up(mesos_url, machine_id):
+    _request("POST", mesos_url, "machine/up", json=[machine_id])
 
 
 def _add_hostname_arg(parser):
@@ -155,7 +147,12 @@ def main(argv=sys.argv[1:]):
     up_parser.set_defaults(func=up)
 
     args = parser.parse_args(argv)
-    args.func(args)
+
+    machine_id = {"hostname": args.hostname, "ip": args.hostname}
+    if args.func == cordon:
+        args.func(args.mesos_url, machine_id, args.duration)
+    else:
+        args.func(args.mesos_url, machine_id)
 
 
 if __name__ == "__main__":
