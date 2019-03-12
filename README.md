@@ -7,9 +7,9 @@ nodes out of a cluster.
 **Note** that this script was designed for a very specific purpose, has no
 tests, and is kept here purely for posterity.
 
-Specifically designed for use with DC/OS 1.10. Some of this functionality is
-present in recent versions of the `dcos` CLI, and more advanced functionality is
-also available in recent versions of Mesos.
+Specifically designed for use with DC/OS 1.10 Community Edition. Some of this
+functionality is present in recent versions of the `dcos` CLI, and more advanced
+functionality is also available in recent versions of Mesos.
 
 The script requires Requests and runs on Python 3. It can be installed as
 `dcosctl` after `pip`-installing or run directly like `python dcosctl.py`.
@@ -33,3 +33,4 @@ The mapping of these requests to commands is:
 * The Mesos agent `hostname == ip`.
 * `dcosctl uncordon` removes a node from **all** maintenance windows in the
   schedule.
+* The script needs cleartext/unauthed access to the Mesos master API.
