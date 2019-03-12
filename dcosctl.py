@@ -54,15 +54,26 @@ def uncordon(args):
 
     # Remove all references to the host, cleaning up as we go
     new_windows = []
+    found = False
     for window in windows:
-        machine_ids = [mid for mid in window["machine_ids"]
-                       if mid["hostname"] != args.hostname]
+        machine_ids = window["machine_ids"]
+        new_machine_ids = (
+            [mid for mid in machine_ids if mid["hostname"] != args.hostname])
+
+        # Very lazy, but probably fine given that Python should just check the
+        # lengths of the lists rather than doing a full comparison
+        if new_machine_ids != machine_ids:
+            found = True
 
         # Skip windows with no remaining machine IDs
         if machine_ids:
             new_window = dict(window)
             new_window["machine_ids"] = machine_ids
             new_windows.append(new_window)
+
+    if not found:
+        _log("WARN: Hostname not found in existing maintenance windows")
+        return
 
     new_schedule = {"windows": new_windows}
     _request("POST", args.mesos_url, "maintenance/schedule", json=new_schedule)
