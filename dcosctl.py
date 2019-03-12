@@ -118,8 +118,9 @@ def up(mesos_url, machine_id):
 
 
 def _add_machine_args(parser):
-    parser.add_argument("hostname", help="Hostname of node")
-    parser.add_argument("--ip", help="IP of node (if different from hostname)")
+    parser.add_argument("ip", help="IP of the node")
+    parser.add_argument(
+        "--hostname", help="Hostname of the node (if different from IP)")
 
 
 def main(argv=sys.argv[1:]):
@@ -157,8 +158,8 @@ def main(argv=sys.argv[1:]):
 
     args = parser.parse_args(argv)
 
-    ip = args.ip if args.ip else args.hostname
-    machine_id = {"hostname": args.hostname, "ip": ip}
+    hostname = args.hostname if args.hostname else args.ip
+    machine_id = {"ip": args.ip, "hostname": hostname}
 
     try:
         if args.func == cordon:
