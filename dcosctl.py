@@ -44,6 +44,25 @@ def cordon(args):
 
 
 def uncordon(args):
+    machine_id = {"hostname": args.hostname, "id": args.hostname}
+
+    # Check if the node is in draining mode. Our 'uncordon' process doesn't
+    # care whether or not this is the case, but it may be useful information
+    # for the user.
+    # http://mesos.apache.org/documentation/latest/maintenance/#draining-mode
+    status = _request("GET", args.mesos_url, "maintenance/status").json()
+    draining_machines = status.get("draining_machines", [])
+    draining = False
+    for machine in draining_machines:
+        if machine.get("id") == machine_id:
+            draining = True
+            break
+
+    if not draining:
+        _log("WARN: Machine was not in draining mode, attempting to remove "
+             "from maintenance schedule anyway...")
+
+
     # Get the existing maintenance schedule...
     schedule = _request("GET", args.mesos_url, "maintenance/schedule").json()
 
@@ -54,16 +73,15 @@ def uncordon(args):
 
     # Remove all references to the host, cleaning up as we go
     new_windows = []
-    found = False
+    scheduled = False
     for window in windows:
         machine_ids = window["machine_ids"]
-        new_machine_ids = (
-            [mid for mid in machine_ids if mid["hostname"] != args.hostname])
+        new_machine_ids = [mid for mid in machine_ids if mid != machine_id]
 
         # Very lazy, but probably fine given that Python should just check the
         # lengths of the lists rather than doing a full comparison
         if new_machine_ids != machine_ids:
-            found = True
+            scheduled = True
 
         # Skip windows with no remaining machine IDs
         if new_machine_ids:
@@ -71,8 +89,9 @@ def uncordon(args):
             new_window["machine_ids"] = new_machine_ids
             new_windows.append(new_window)
 
-    if not found:
-        _log("WARN: Hostname not found in existing maintenance windows")
+    if not scheduled:
+        _log("WARN: Hostname not found in existing maintenance windows, "
+             "nothing to 'uncordon'")
         return
 
     new_schedule = {"windows": new_windows}

@@ -31,6 +31,6 @@ The mapping of these requests to commands is:
 
 ## Assumptions
 * The Mesos agent `hostname == ip`.
-* `dcosctl uncordon` removes a node from **all** maintenance windows in the
-  schedule.
+* `dcosctl uncordon` simply removes a node from **all** maintenance windows in
+  the schedule, whether it is in draining mode or not.
 * The script needs cleartext/unauthed access to the Mesos master API.
