@@ -66,9 +66,9 @@ def uncordon(args):
             found = True
 
         # Skip windows with no remaining machine IDs
-        if machine_ids:
+        if new_machine_ids:
             new_window = dict(window)
-            new_window["machine_ids"] = machine_ids
+            new_window["machine_ids"] = new_machine_ids
             new_windows.append(new_window)
 
     if not found:
