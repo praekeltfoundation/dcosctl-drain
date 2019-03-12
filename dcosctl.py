@@ -109,8 +109,9 @@ def up(mesos_url, machine_id):
     _request("POST", mesos_url, "machine/up", json=[machine_id])
 
 
-def _add_hostname_arg(parser):
+def _add_machine_args(parser):
     parser.add_argument("hostname", help="Hostname of node")
+    parser.add_argument("--ip", help="IP of node (if different from hostname)")
 
 
 def main(argv=sys.argv[1:]):
@@ -123,7 +124,7 @@ def main(argv=sys.argv[1:]):
 
     cordon_parser = subparsers.add_parser(
         "cordon", help="'Cordon' a node: schedule it for maintenance")
-    _add_hostname_arg(cordon_parser)
+    _add_machine_args(cordon_parser)
     cordon_parser.set_defaults(func=cordon)
     cordon_parser.add_argument(
         "--duration", type=float, default=3600.0,
@@ -133,22 +134,24 @@ def main(argv=sys.argv[1:]):
     uncordon_parser = subparsers.add_parser(
         "uncordon",
         help="'Uncordon' a node: remove it from the maintenance schedule")
-    _add_hostname_arg(uncordon_parser)
+    _add_machine_args(uncordon_parser)
     uncordon_parser.set_defaults(func=uncordon)
 
     drain_parser = subparsers.add_parser(
         "drain", help="'Drain' a node: mark the machine as down")
-    _add_hostname_arg(drain_parser)
+    _add_machine_args(drain_parser)
     drain_parser.set_defaults(func=drain)
 
     up_parser = subparsers.add_parser(
         "up", help="Mark a node as up: the opposite of drain")
-    _add_hostname_arg(up_parser)
+    _add_machine_args(up_parser)
     up_parser.set_defaults(func=up)
 
     args = parser.parse_args(argv)
 
-    machine_id = {"hostname": args.hostname, "ip": args.hostname}
+    ip = args.ip if args.ip else args.hostname
+    machine_id = {"hostname": args.hostname, "ip": ip}
+
     if args.func == cordon:
         args.func(args.mesos_url, machine_id, args.duration)
     else:

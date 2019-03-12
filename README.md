@@ -30,8 +30,7 @@ The mapping of these requests to commands is:
 * `POST /maintenance/schedule` (remove from schedule) -> `dcosctl uncordon`
 
 ## Assumptions
-* The Mesos agent `hostname == ip`.
-* The script needs cleartext/unauthed access to the Mesos master API.
+The script needs cleartext/unauthed access to the Mesos master API.
 
 The cordon/uncordon process is intentionally *not* smart. Cordoning will add a
 new maintenance window for the node, and give up if one already exists.
